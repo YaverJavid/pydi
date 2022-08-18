@@ -24,11 +24,11 @@ c_funcData = {}
 arthOp = '+-*/%<>~^|&!'
 indentationMark = '  '
 Vars = {'object':'<empty>','cache':'null'}
-SuperVars = {'version':'pydi-5.0','auth':'yaver','i':None,'n1':-1,'returnee':None,'nl':'\n',
+SuperVars = {'version':'py.di.13.0','auth':'yaver','i':None,'n1':-1,'returnee':None,'nl':'\n',
 'cache' : '#CACHE', 'chn' : ':', 'bs' : '(','bc': ')'
 }
 Scopes = {}
-UniversalFuncs = ['str','int','bool','len','complex','type','long','NOT','NEG','float','input','abs','typeOf','rand','list','split','of','replace','rsplit','trim','triml','trimr']
+UniversalFuncs = ['str','int','bool','len','complex','type','long','NOT','NEG','float','input','abs','typeOf','rand','list','split','of','replace','rsplit','trim','triml','trimr','round','parseInt','index','isDecimal']
 MathFuncs = ['sin','cos','tan','cot','cosec','sec','sqrt','gcd']
 Functions =  {}
 math = ''
@@ -76,7 +76,8 @@ Errors = [
   'Index Not Found In String.',
   'The Module Was Not Found.',
   'Illegal Name Of Module Given During Import.',
-  'Module resulted in an error.'
+  'Module resulted in an error.',
+  'Int Function Gave An Error.'
 ]
 
 class bcolors:
@@ -93,7 +94,7 @@ class bcolors:
 def a2o(arr):
   obj = {}
   for i in range(0,len(arr)):
-    obj[str(i)] = arr[i]
+    obj[i] = arr[i]
   return obj
 
 
@@ -107,6 +108,15 @@ def of(string,i):
   else: Error(5)
 
 
+def index(string,i,newValue):
+  if(str(i).isdecimal()):
+    i = int(i)
+    if(i > len(string)):
+      Error(29)
+    else :
+      string = string[:i] + str(newValue)[0] + string[i + 1:]
+      return string
+  else: Error(5)
 
 def Error(index,line = None):
   global i,safe
@@ -131,9 +141,7 @@ def Error(index,line = None):
 {length*'¯'}¯¯
 '''
   print(ErrorString)
-  #print('|' + ('¯¯'*(len(instructions[line-1]))+10) + '\n|\n|At :\n|\n|\n|>       '+instructions[line-1] +'      <\n|\n|\n|\n|',Errors[index],f'\n| : at line {line} on file {filename}  \n|' + ('__'*25) )
   if safe:
-    print ("No Changes Made")
     exit()
 
 NEG = lambda n:n*-1
@@ -146,7 +154,13 @@ rand = lambda i : random() * i
 replace = lambda string,a,b: string.replace(a,b)
 rsplit = lambda s,d,l = -1: a20(s.rsplit(d,l))
 split = lambda s,d,l = -1: a2o(s.split(d,l))
+isDecimal = lambda i: str(i).isdecimal()
 
+def parseInt(x):
+  try:
+    return int(x)
+  except:
+    Error(33)
 
 def writeFile(args,data):
   filename =  eval(parseExpr(objectifyArgs(args)['f']))
@@ -313,9 +327,8 @@ def parseFunclExpr(func,expr):
     expr[i] = eval(parseExpr(expr[i]))
     if(typeOf(expr[i]) == 'str'):
       expr[i] = '"' + expr[i] + '"'
-    elif(typeOf(expr[i]) in ['float','int','bool']):
+    elif(typeOf(expr[i]) in ['float','int','bool','dict']):
       expr[i] = str(expr[i])
-    
   expr = ','.join(expr)
   if(func in UniversalFuncs):
     return f'{func}({expr})'
@@ -332,9 +345,9 @@ def printOut(arg):
     print(eval(parseExpr(arg)))
   except KeyError:
     Error(12)
-  except Exception as e:
-    print(e)
-    Error(7)
+  # except Exception as e:
+  #   print(e)
+  #   Error(7)
 
 def getOperators(expr):
   operators = []
@@ -483,7 +496,7 @@ def read(cmdArgs,arg):
 
 def condLoop(arg):
   global i,warnings
-  if warnings and (arg in ['True','False']) : print(f"Warining : Condition '{arg}' is always going to be {arg}. @ 'while {arg}' at line {i} . To supress the warning use ({arg})")
+  if warnings and (arg in ['True','False']) : print(f"{bcolors.WARNING}Warining : Condition '{arg}' is always going to be {arg}. @ 'while {arg}' at line {i} . To supress the warning use ({arg}){bcolors.E}")
   cond = parseExpr(arg)
   z = i
   if not eval(cond):
@@ -500,7 +513,7 @@ def condLoop(arg):
         else:
           instr = parseInstructions(instructions[j].lstrip())
           if stopLoop: 
-            i = len(instructions) + i - 1
+            i =  i - 1
             return
           execute(instr['cmd'],instr['cmdArgs'],instr['arg'])
         i = j + 1 if len(instructions) == int(j)+1 else i
@@ -625,7 +638,8 @@ def call(arg,cmdArgs):
     instr = parseInstructions(c_funcData[name]['instrs'][c_funcData[name]['c_blockIndex']].lstrip())
     if instr['cmd'] == 'return':
       if varible:
-        Vars[varible] = eval(parseExpr(instr['arg']))
+        if varible == '>>' : printOut(instr['arg'])
+        else : Vars[varible] = eval(parseExpr(instr['arg']))
       else:
         SuperVars['returnee'] = eval(parseExpr(instr['arg']))
       isFunctionRunning = False
@@ -642,6 +656,7 @@ def call(arg,cmdArgs):
 def terinary(arg):
   arg = arg.split('?')
   cond = eval(parseExpr(removeSpaces(arg[0])))
+  if len(arg) == 2 and (not cond) : return
   toBeExecuted = 1 if cond else 2
   arg[toBeExecuted] = arg[toBeExecuted].split(',')
   for i in range(0,len(arg[toBeExecuted])):
@@ -686,6 +701,7 @@ def expression(arg):
   else:
     try:
       SuperVars['returnee'] = eval(parseExpr(arg))
+      return 
     except:
       Error(8)
       return
@@ -717,7 +733,12 @@ def createLambda(arg):
   if len(arguments) == 1 and arguments[0] == '' : arguments = []
   expression = ['return ' + arg[2]]
   Functions[name] = Function(arguments, expression)
-  
+
+def createGetter(arg):
+  arg = arg.split(':',1)
+  name = arg[0]
+  expression = ['return ' + arg[1]]
+  Functions[name] = Function([],expression)
 
 def execute(cmd,cmdArgs,arg):
   global safe,warnings,moddir
@@ -751,11 +772,13 @@ def execute(cmd,cmdArgs,arg):
   elif(cmd == 'printE'):
     print(parseExpr(arg))
   elif(len(cmd) > 0 and cmd[0] == '#'):
-    pass
-  elif(cmd in ['=>','lambda','Ⲗ']):
+    pass 
+  elif(cmd in ['lambda','Ⲗ']):
     createLambda(arg)
-  elif(cmd == 'BLOCK'):
+  elif(cmd in ['BLOCK','function','=>']):
     createFunction(arg)
+  elif(cmd in ['getter','<==']):
+    createGetter(arg)
   elif(cmd == 'CALL' or cmd == '()'):
     call(arg,cmdArgs)
   elif(cmd in ['{}','object']):
